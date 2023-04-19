@@ -1,3 +1,10 @@
+<!--
+ * @Editor: chenqy
+ * @Description: 
+ * @Date: 2023-04-07 18:16:32
+ * @LastEditors: Chenqy
+ * @LastEditTime: 2023-04-19 11:07:10
+-->
 # monaco-editor-block
 monaco-editor-block 为monaco-editor的块状元素扩充插件
 ### 使用步骤
@@ -38,3 +45,7 @@ monaco-editor-block 为monaco-editor的块状元素扩充插件
 1. npm i
 2. npm run serve
 3. click btn
+
+
+
+dasdasd
