@@ -1,6 +1,7 @@
 export class MonacoBlock {
   decorationsCollection = null; // 块状元素装饰器
   firstSelection = null;
+  isMac = /macintosh|mac os x/i.test(navigator.userAgent);
 
   constructor(editor, monaco) {
     this.editor = editor;
@@ -24,14 +25,15 @@ export class MonacoBlock {
     this.editor.addCommand(this.monaco.KeyCode.Delete, () => {
       this.handleResetBackspace.bind(this)(true);
     });
-    // 重写undo
-    this.editor.addCommand(
-      this.monaco.KeyMod.CtrlCmd | this.monaco.KeyCode.KeyZ,
-      () => {
-        this.editor.getModel()?.undo();
-        this.handleParseZero2decoration.bind(this)();
+    // 监听ctrl+v/ctrl+z
+    this.editor.onKeyDown(({ metaKey, ctrlKey, keyCode }) => {
+      const ck = this.isMac ? metaKey : ctrlKey;
+      if (ck && (keyCode === 56 || keyCode === 52)) {
+        setTimeout(() => {
+          this.handleParseZero2decoration();
+        }, 50);
       }
-    );
+    });
     this.handleParseZero2decoration();
   }
   /**
@@ -57,7 +59,7 @@ export class MonacoBlock {
         true
       );
     }
-    if (!Object.keys(targetPosition).length) {
+    if (Object.keys(deleteElement).length === 0) {
       if (isDelete) {
         deleteElement = {
           lineNumbers: [startLineNumber, endLineNumber],
@@ -80,7 +82,7 @@ export class MonacoBlock {
     }
     this.editor.executeEdits("", [
       {
-        range: new this.monaco.Range(
+        range: new monaco.Range(
           deleteElement.lineNumbers[0],
           deleteElement.columns[0],
           deleteElement.lineNumbers[1],
@@ -98,17 +100,24 @@ export class MonacoBlock {
         if (!deleteElement.index.includes(i)) {
           const item = ranges[i];
           decorations.push({
-            range: new this.monaco.Range(
+            range: new monaco.Range(
               item.startLineNumber,
               item.startColumn,
               item.endLineNumber,
               item.endColumn
             ),
-            options: this.handleDecorationOption("editor-custom-block"),
+            options: this.handleDecorationOption(
+              this.decorationClassNames[i] || "editor-custom-block"
+            ),
           });
         }
       }
       this.decorationsCollection.set(decorations);
+      // 删除对应的className
+      this.decorationClassNames.splice(
+        deleteElement.index[0],
+        deleteElement.index.length
+      );
     }
     // 检查光标是否需要换行
     if (column === 1 && lineNumber !== 1) {
