@@ -113,8 +113,6 @@ export class MonacoBlock {
       this.decorationsCollection.set(decorations);
     }
     // 检查光标是否需要换行
-    console.log(column, lineNumber);
-
     if (column === 1 && lineNumber !== 1) {
       const focusLineMaxColums =
         this.editor.getModel().getLineMaxColumn(lineNumber) - 1;
