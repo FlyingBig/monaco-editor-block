@@ -106,24 +106,35 @@ export class MonacoBlock {
               item.endLineNumber,
               item.endColumn
             ),
-            options: this.handleDecorationOption(
-              this.decorationClassNames[i] || "editor-custom-block"
-            ),
+            options: this.handleDecorationOption("editor-custom-block"),
           });
         }
       }
       this.decorationsCollection.set(decorations);
-      // 删除对应的className
-      this.decorationClassNames.splice(
-        deleteElement.index[0],
-        deleteElement.index.length
-      );
     }
     // 检查光标是否需要换行
+    console.log(column, lineNumber);
+
     if (column === 1 && lineNumber !== 1) {
+      const focusLineMaxColums =
+        this.editor.getModel().getLineMaxColumn(lineNumber) - 1;
+      this.editor.executeEdits("", [
+        {
+          range: new monaco.Range(
+            lineNumber - 1,
+            this.editor.getModel().getLineMaxColumn(lineNumber - 1),
+            lineNumber,
+            0
+          ),
+          text: "",
+          forceMoveMarkers: true, // 取消选中状态
+        },
+      ]);
       this.editor.setPosition({
         lineNumber: lineNumber - 1,
-        column: this.editor.getModel().getLineMaxColumn(lineNumber - 1),
+        column:
+          this.editor.getModel().getLineMaxColumn(lineNumber - 1) -
+          focusLineMaxColums,
       });
     }
   }
@@ -186,12 +197,74 @@ export class MonacoBlock {
   }
   /**
    * @description: 当前光标所在位置是否处于某个decoration内
-   * @param {this.monaco.Position} position 光标位置
+   * @param {Monaco.Position} position 光标位置
    * @param {Boolean} prevClosure 是否为前闭合区间
    * @param {Boolean} afterClosure 是否为后闭合区间
    * @param {Boolean} reverse 找出position内的区间
-   * @return {this.monaco.Position/this.monaco.Selection} decoration位置信息
+   * @return {Monaco.Position/Monaco.Selection} decoration位置信息
    */
+  handkeIsIndecorationRange(
+    position,
+    prevClosure = false,
+    afterClosure = false,
+    reverse = false
+  ) {
+    if (this.decorationsCollection) {
+      const decorationPosition = this.decorationsCollection.getRanges();
+      let i = 0;
+      let data = {};
+      while (i < decorationPosition.length) {
+        const range = decorationPosition[i];
+        const line = range.startLineNumber;
+        const startColumn = range.startColumn + +!prevClosure;
+        const endColumn = range.endColumn + +afterClosure;
+        if (reverse) {
+          const { endColumn, endLineNumber, startColumn, startLineNumber } =
+            position;
+          const {
+            endColumn: rEndColumn,
+            endLineNumber: rEndLineNumber,
+            startColumn: rStartColumn,
+            startLineNumber: rStartLineNumber,
+          } = range;
+          if (
+            startLineNumber <= rStartLineNumber &&
+            endLineNumber >= rEndLineNumber &&
+            startColumn <= rStartColumn &&
+            endColumn >= rEndColumn
+          ) {
+            if (!data.index) {
+              data = {
+                lineNumbers: [startLineNumber, endLineNumber],
+                columns: [startColumn, endColumn],
+                index: [i],
+              };
+            } else {
+              data.index.push(i);
+            }
+          }
+          i++;
+        } else {
+          if (
+            line === position.positionLineNumber &&
+            position.positionColumn >= startColumn &&
+            position.positionColumn < endColumn
+          ) {
+            return {
+              lineNumbers: [line, line],
+              columns: [range.startColumn, range.endColumn],
+              index: [i],
+            };
+          } else {
+            i++;
+          }
+        }
+      }
+      return data;
+    } else {
+      return {};
+    }
+  }
   handkeIsIndecorationRange(
     position,
     prevClosure = false,
