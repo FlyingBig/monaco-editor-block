@@ -7,7 +7,7 @@ module.exports = {
   entry: path.resolve(__dirname, "index.js"),
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "app.js",
+    filename: "app[chunkhash].js",
   },
   plugins: [
     new HtmlWebpackPlugin({ template: path.resolve(__dirname, "index.html") }),

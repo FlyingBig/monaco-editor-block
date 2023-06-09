@@ -6,17 +6,64 @@ export class MonacoBlock {
   constructor(editor, monaco) {
     this.editor = editor;
     this.monaco = monaco;
+    this.selectionBlock = {}; // 选中的块状元素数据
     this.init();
   }
   init() {
+    const _this = this;
+    // 处理选中了块状元素，输入非backspace/delete键后，内容被删除，但是块状元素本身还存留问题。
+    const changeValue = (interval = 50) => {
+      let timer = null;
+      return () => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        timer = setTimeout(() => {
+          if (Object.keys(_this.selectionBlock).length) {
+            const ranges = _this.decorationsCollection.getRanges();
+            let decorations = [];
+            for (let i = 0, j = ranges.length; i < j; i++) {
+              if (!_this.selectionBlock.index.includes(i)) {
+                const item = ranges[i];
+                decorations.push({
+                  range: new monaco.Range(
+                    item.startLineNumber,
+                    item.startColumn,
+                    item.endLineNumber,
+                    item.endColumn
+                  ),
+                  options: _this.handleDecorationOption("editor-custom-block"),
+                });
+              }
+            }
+            _this.selectionBlock = {};
+            _this.decorationsCollection.set(decorations);
+          }
+          timer = null;
+        }, interval);
+      };
+    };
+    this.editor.onDidChangeModelContent(changeValue());
+
     this.editor.onDidChangeCursorSelection(
       this.handleChangeCursorSelection.bind(this)
     );
     this.editor.onMouseDown(() => {
-      this.firstSelection = this.editor.getPosition();
+      setTimeout(() => {
+        this.firstSelection = this.editor.getPosition();
+      }, 50);
     });
     this.editor.onMouseUp(() => {
-      this.firstSelection = null;
+      setTimeout(() => {
+        this.firstSelection = null;
+        const selection = this.editor.getSelection();
+        this.selectionBlock = this.handkeIsIndecorationRange(
+          selection,
+          true,
+          true,
+          true
+        );
+      }, 50);
     });
     // 重写删除事件
     this.editor.addCommand(this.monaco.KeyCode.Backspace, () => {
@@ -149,15 +196,27 @@ export class MonacoBlock {
       if (isSingle) {
         // 如果有块状元素重新光标移动逻辑
         if (Object.keys(targetPosition).length) {
-          const direction =
-            selection.endColumn > oldSelections[0].endColumn
-              ? "toRight"
-              : "toLeft";
-          let range = {
-            lineNumber: targetPosition.lineNumbers[0],
-            column: targetPosition.columns[direction === "toRight" ? 1 : 0],
-          };
-          this.editor.setPosition(range);
+          const [left, right] = targetPosition.columns;
+          const { column: currentPositionColum, lineNumber } =
+            this.editor.getPosition();
+          // 利用鼠标移动焦点
+          if (source === "mouse") {
+            let range = {
+              lineNumber,
+              column: (left + right) / 2 > currentPositionColum ? left : right,
+            };
+            this.editor.setPosition(range);
+          } else {
+            const direction =
+              selection.endColumn > oldSelections[0].endColumn
+                ? "toRight"
+                : "toLeft";
+            let range = {
+              lineNumber: lineNumber,
+              column: direction === "toRight" ? right : left,
+            };
+            this.editor.setPosition(range);
+          }
         }
       } else {
         const { positionLineNumber, positionColumn } = selection;
@@ -201,68 +260,6 @@ export class MonacoBlock {
    * @param {Boolean} reverse 找出position内的区间
    * @return {Monaco.Position/Monaco.Selection} decoration位置信息
    */
-  handkeIsIndecorationRange(
-    position,
-    prevClosure = false,
-    afterClosure = false,
-    reverse = false
-  ) {
-    if (this.decorationsCollection) {
-      const decorationPosition = this.decorationsCollection.getRanges();
-      let i = 0;
-      let data = {};
-      while (i < decorationPosition.length) {
-        const range = decorationPosition[i];
-        const line = range.startLineNumber;
-        const startColumn = range.startColumn + +!prevClosure;
-        const endColumn = range.endColumn + +afterClosure;
-        if (reverse) {
-          const { endColumn, endLineNumber, startColumn, startLineNumber } =
-            position;
-          const {
-            endColumn: rEndColumn,
-            endLineNumber: rEndLineNumber,
-            startColumn: rStartColumn,
-            startLineNumber: rStartLineNumber,
-          } = range;
-          if (
-            startLineNumber <= rStartLineNumber &&
-            endLineNumber >= rEndLineNumber &&
-            startColumn <= rStartColumn &&
-            endColumn >= rEndColumn
-          ) {
-            if (!data.index) {
-              data = {
-                lineNumbers: [startLineNumber, endLineNumber],
-                columns: [startColumn, endColumn],
-                index: [i],
-              };
-            } else {
-              data.index.push(i);
-            }
-          }
-          i++;
-        } else {
-          if (
-            line === position.positionLineNumber &&
-            position.positionColumn >= startColumn &&
-            position.positionColumn < endColumn
-          ) {
-            return {
-              lineNumbers: [line, line],
-              columns: [range.startColumn, range.endColumn],
-              index: [i],
-            };
-          } else {
-            i++;
-          }
-        }
-      }
-      return data;
-    } else {
-      return {};
-    }
-  }
   handkeIsIndecorationRange(
     position,
     prevClosure = false,
