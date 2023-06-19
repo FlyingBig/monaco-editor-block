@@ -1,4 +1,4 @@
-import { MonacoBlock } from "./dist/monacoBlock";
+import MonacoBlock from "./monacoBlock/monacoBlock";
 import * as monaco from "monaco-editor";
 
 let monacoEditor = monaco.editor.create(document.querySelector(".root"), {
@@ -9,7 +9,6 @@ let monacoEditor = monaco.editor.create(document.querySelector(".root"), {
 const monacoBlock = new MonacoBlock(monacoEditor, monaco);
 monacoBlock.hiddenZeroTip();
 window.monaco = monaco;
-console.log(monacoBlock);
 const handleAddVar = () => {
   const code = "我是块状变量";
   monacoBlock.addCode(code);
