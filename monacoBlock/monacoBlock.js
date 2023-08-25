@@ -66,11 +66,23 @@ export default class MonacoBlock {
       }, 50);
     });
     // 重写删除事件
-    this.editor.addCommand(this.monaco.KeyCode.Backspace, () => {
-      this.handleResetBackspace.bind(this)();
+    // this.editor.addCommand(this.monaco.KeyCode.Backspace, () => {
+    //   this.handleResetBackspace.bind(this)();
+    // });
+    // this.editor.addCommand(this.monaco.KeyCode.Delete, () => {
+    //   this.handleResetBackspace.bind(this)(true);
+    // });
+    this.editerInstance.addAction({
+      id: "backspace",
+      label: "backspace",
+      keybindings: [monaco.KeyCode.Backspace],
+      run: () => this.handleResetBackspace.bind(this)(),
     });
-    this.editor.addCommand(this.monaco.KeyCode.Delete, () => {
-      this.handleResetBackspace.bind(this)(true);
+    this.editerInstance.addAction({
+      id: "delete",
+      label: "delete",
+      keybindings: [monaco.KeyCode.Delete],
+      run: () => this.handleResetBackspace.bind(this)(true)
     });
     // 监听ctrl+v/ctrl+z/ctrl+y
     this.editor.onKeyDown(({ metaKey, ctrlKey, keyCode }) => {
@@ -260,6 +272,7 @@ export default class MonacoBlock {
    * @param {Boolean} reverse 找出position内的区间
    * @return {Monaco.Position/Monaco.Selection} decoration位置信息
    */
+  
   handkeIsIndecorationRange(
     position,
     prevClosure = false,
@@ -356,10 +369,15 @@ export default class MonacoBlock {
    * @param {string} type 添加方式  参考值：[focus, end]
    * @return {*}
    */
-  addCode(code, type = "focus") {
-    if (typeof code !== "string") {
-      alert("插入内容须为字符串");
-      return;
+  addCode(insertObj, type = "focus") {
+    let code = "";
+    if (typeof insertObj === "string") {
+      code = insertObj
+    } else if(Object.prototype.toString.apply(insertObj) === "[object Object]") {
+      code = insertObj.code || "";
+    } else {
+      alert("插入值须为String或者Object类型")
+      return
     }
     if (this.editor) {
       let range = null;
@@ -390,23 +408,28 @@ export default class MonacoBlock {
         range.startColumn + op.text.length,
       ];
       if (this.decorationsCollection) {
+
         let decorations = this.decorationsCollection
           .getRanges()
           .map((item, index) => {
+            const range = new monaco.Range(
+              item.startLineNumber,
+              item.startColumn,
+              item.endLineNumber,
+              item.endColumn
+            );
+            console.log(range)
+            // 在装饰器数据查看自定义数据
+            const decorat = this.editor.getDecorationsInRange(range);
+            console.log(decorat)
             return {
-              range: new monaco.Range(
-                item.startLineNumber,
-                item.startColumn,
-                item.endLineNumber,
-                item.endColumn
-              ),
-
+              range: range,
               options: this.handleDecorationOption(className),
             };
           });
         decorations.push({
           range: new monaco.Range(...decorationRange),
-          options: this.handleDecorationOption(className),
+          options: Object.assign(this.handleDecorationOption(className)),
         });
         this.editor.executeEdits("", [op]);
         this.decorationsCollection.set(decorations);
@@ -415,7 +438,7 @@ export default class MonacoBlock {
         this.decorationsCollection = this.editor.createDecorationsCollection([
           {
             range: new monaco.Range(...decorationRange),
-            options: this.handleDecorationOption(className),
+            options: Object.assign(this.handleDecorationOption(className)),
           },
         ]);
       }
