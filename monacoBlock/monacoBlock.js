@@ -72,16 +72,16 @@ export default class MonacoBlock {
     // this.editor.addCommand(this.monaco.KeyCode.Delete, () => {
     //   this.handleResetBackspace.bind(this)(true);
     // });
-    this.editerInstance.addAction({
+    this.editor.addAction({
       id: "backspace",
       label: "backspace",
-      keybindings: [monaco.KeyCode.Backspace],
+      keybindings: [this.monaco.KeyCode.Backspace],
       run: () => this.handleResetBackspace.bind(this)(),
     });
-    this.editerInstance.addAction({
+    this.editor.addAction({
       id: "delete",
       label: "delete",
-      keybindings: [monaco.KeyCode.Delete],
+      keybindings: [this.monaco.KeyCode.Delete],
       run: () => this.handleResetBackspace.bind(this)(true)
     });
     // 监听ctrl+v/ctrl+z/ctrl+y
