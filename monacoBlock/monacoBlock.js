@@ -1,3 +1,6 @@
+/*
+ * @Version: 0.37.1 
+ */
 export default class MonacoBlock {
   decorationsCollection = null; // 块状元素装饰器
   firstSelection = null;
