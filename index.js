@@ -3,67 +3,109 @@
  * @Description:
  * @Date: 2023-04-07 15:52:39
  * @LastEditors: Chenqy
- * @LastEditTime: 2024-03-01 17:54:38
+ * @LastEditTime: 2024-03-05 10:57:55
  */
 import MonacoBlock from "./monacoBlock/monacoBlock";
 import * as monaco from "monaco-editor";
+let oldValue = "";
+let monacoBlock = null;
+let monacoEditor = null;
+const init = () => {
+  monacoEditor = monaco.editor.create(document.querySelector(".root"), {
+    language: "javascript",
+    value: oldValue, // 编辑器初始显示文字
+    automaticLayout: true, // 自动布局
+    theme: "vs", // 官方自带三种主题vs, hc-black, or vs-dark
+    unicodeHighlight: {
+      invisibleCharacters: false, // 隐藏零宽字符特殊显示
+    },
+  });
+  // console.log(monacoEditor)
+  monacoBlock = new MonacoBlock(monacoEditor, {
+    blockClassName: "editor-custom-block",
+    cancelJsDiagnostics: true, // 取消 t/js 代码诊断
+    cancelJsCompletionItems: true, //取消 t/js 代码提示
+    hideZeroCode: true, // 隐藏零宽字符特殊样式
 
-let monacoEditor = monaco.editor.create(document.querySelector(".root"), {
-  language: "javascript",
-  value: "test", // 编辑器初始显示文字
-  automaticLayout: true, // 自动布局
-  theme: "vs", // 官方自带三种主题vs, hc-black, or vs-dark
-});
-const monacoBlock = new MonacoBlock(monacoEditor, monaco, {
-  blockClassName: "editor-custom-block",
-  deleteBlockCode: (codes) => {
-    console.log(codes);
-  },
-  customBlockStyle: (blockWord) => {
-    console.log(blockWord);
-    return {
-      inlineClassName:
-        blockWord === "性别" ? "editor-custom-red" : "editor-custom-blue",
-      stickiness:
-        monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-    };
-  },
-});
-console.log(monacoEditor, monacoBlock);
+    deleteBlockCode: (codes) => {
+      console.log("删除的块状代码串：",codes);
+    },
+    customBlockStyle: (blockWord) => {
+      console.log(`自定义样式代码串：${blockWord}`);
+      return {
+        inlineClassName:
+          blockWord === "块状代码一"
+            ? "editor-custom-block"
+            : "editor-custom-blue",
+        stickiness:
+          monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      };
+    },
+  });
+};
+init();
 
-monacoBlock.hiddenZeroTip();
 window.monaco = monaco;
 
 const handleAddVar = (code) => {
   monacoBlock.addCode(code);
 };
-const jj = () => {
-  let selection = monacoEditor.getSelection();
-  const range = new monaco.Range(
-    selection.startLineNumber,
-    selection.startColumn,
-    selection.endLineNumber,
-    selection.endColumn
-  );
-  let op = {
-    range: range,
-    text: "()",
-    forceMoveMarkers: true, // 取消选中状态
-  };
-  monacoEditor.executeEdits("", [op]);
-};
+
 const addBtn = () => {
   let btn = document.createElement("button");
-  btn.innerText = "添加块状变量0";
+  btn.innerText = "添加块状代码(样式一)";
   btn.onclick = () => {
-    handleAddVar({ code: `性别` });
+    handleAddVar({ code: `块状代码一` });
   };
+
   let btn1 = document.createElement("button");
-  btn1.innerText = "添加块状变量1";
+  btn1.innerText = "添加块状代码(样式二)";
   btn1.onclick = () => {
-    handleAddVar({ code: "年龄" });
+    handleAddVar({ code: `块状代码二` });
   };
+
+  let btn2 = document.createElement("button");
+  btn2.innerText = "添加普通代码";
+  btn2.onclick = () => {
+    handleAddVar({
+      code: "普通代码",
+      isNormal: true,
+    });
+  };
+
+  let btn3 = document.createElement("button");
+  btn3.innerText = "一次性添加多个块状代码";
+  btn3.onclick = () => {
+    handleAddVar({
+      code: "\n{@阳光呐@}明媚，而我在{@垃圾堆@}\n怎么可能你真的会来找我",
+      isNormal: true,
+    });
+  };
+
+  let btn4 = document.createElement("button");
+  btn4.innerText = "获取值";
+  btn4.onclick = () => {
+    const { value, serializeValue } = monacoBlock.getCode();
+    console.log(`获取值：${value}`);
+    console.log(`带块状信息的值：${serializeValue}`);
+    oldValue = serializeValue;
+  };
+
+  let btn5 = document.createElement("button");
+  btn5.innerText = "复现获取后的值";
+  btn5.onclick = () => {
+    monacoBlock.destroy();
+    // 定时器存在的意义是方便展示效果
+    setTimeout(() => {
+      init();
+    }, 1000);
+  };
+
   document.body.append(btn);
   document.body.append(btn1);
+  document.body.append(btn2);
+  document.body.append(btn3);
+  document.body.append(btn4);
+  document.body.append(btn5);
 };
 addBtn();

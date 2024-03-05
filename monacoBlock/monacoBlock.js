@@ -1,14 +1,14 @@
 /*
  * @Version: 0.46.0
  */
+import * as monaco from "monaco-editor";
 export default class MonacoBlock {
   decorationsCollection = null; // 块状元素装饰器
   firstSelection = null;
   isMac = /macintosh|mac os x/i.test(navigator.userAgent);
 
-  constructor(editor, monaco, options = {}) {
+  constructor(editor, options = {}) {
     this.editor = editor;
-    this.monaco = monaco;
     this.selectionBlock = null; // 选中的块状元素数据
 
     const defaultOptions = {
@@ -22,15 +22,13 @@ export default class MonacoBlock {
   _setOptions(isDestroy = false) {
     const { cancelJsDiagnostics, cancelJsCompletionItems } = this.options;
     if (cancelJsDiagnostics) {
-      this.monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(
-        {
-          noSemanticValidation: !isDestroy,
-          noSyntaxValidation: !isDestroy,
-        }
-      );
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: !isDestroy,
+        noSyntaxValidation: !isDestroy,
+      });
     }
     if (cancelJsCompletionItems) {
-      this.monaco.languages.typescript.javascriptDefaults.setModeConfiguration({
+      monaco.languages.typescript.javascriptDefaults.setModeConfiguration({
         completionItems: isDestroy,
       });
     }
@@ -69,7 +67,7 @@ export default class MonacoBlock {
       setTimeout(() => {
         this.firstSelection = null;
         const selection = this.editor.getSelection();
-        this.selectionBlock = this.handkeIsIndecorationRange(
+        this.selectionBlock = this.handleIsIndecorationRange(
           selection,
           true,
           true,
@@ -81,13 +79,13 @@ export default class MonacoBlock {
     this.editor.addAction({
       id: "backspace",
       label: "backspace",
-      keybindings: [this.monaco.KeyCode.Backspace],
+      keybindings: [monaco.KeyCode.Backspace],
       run: () => this.handleResetBackspace.bind(this)(),
     });
     this.editor.addAction({
       id: "delete",
       label: "delete",
-      keybindings: [this.monaco.KeyCode.Delete],
+      keybindings: [monaco.KeyCode.Delete],
       run: () => this.handleResetBackspace.bind(this)(true),
     });
     // 监听ctrl+v/ctrl+z/ctrl+y
@@ -115,9 +113,9 @@ export default class MonacoBlock {
     let hasBlock = false;
     // 判断是否为选中删除
     if (startLineNumber === endLineNumber && startColumn === endColumn) {
-      deleteElement = this.handkeIsIndecorationRange(selection, isDelete, true);
+      deleteElement = this.handleIsIndecorationRange(selection, isDelete, true);
     } else {
-      deleteElement = this.handkeIsIndecorationRange(
+      deleteElement = this.handleIsIndecorationRange(
         selection,
         false,
         true,
@@ -209,31 +207,44 @@ export default class MonacoBlock {
     if (this.decorationsCollection && validSource.includes(source)) {
       const isSingle = !this.firstSelection;
       // 目标decoration位置信息
-      let targetPosition = {};
+      let targetPosition = null;
       // 找出当先区域是否含有块状元素
-      targetPosition = this.handkeIsIndecorationRange(selection);
+      targetPosition = this.handleIsIndecorationRange(selection);
+
       // 非选中模式
       if (isSingle) {
-        // 如果有块状元素重新光标移动逻辑
-        if (targetPosition) {
-          const [left, right] = targetPosition.columns;
-          const { column: currentPositionColum, lineNumber } =
-            this.editor.getPosition();
-          // 利用鼠标移动焦点
-          if (source === "mouse") {
+        if (!targetPosition) return;
+        const [left, right] = targetPosition.columns;
+        const {
+          startColumn: currentPositionColumn,
+          startLineNumber: currentLineNumber,
+        } = selection;
+        const { startLineNumber: oldLineNumber, startColumn: oldColumn } =
+          oldSelections[0];
+        // 利用鼠标移动焦点
+        if (source === "mouse") {
+          // 如果有块状元素重新光标移动逻辑
+          console.log(currentPositionColumn);
+          let range = {
+            lineNumber: currentLineNumber,
+            column: (left + right) / 2 > currentPositionColumn ? left : right,
+          };
+          this.editor.setPosition(range);
+        } else {
+          // 键盘移动横向光标
+          if (oldLineNumber === currentLineNumber) {
+            const direction = currentPositionColumn > oldColumn ? right : left;
             let range = {
-              lineNumber,
-              column: (left + right) / 2 > currentPositionColum ? left : right,
+              lineNumber: currentLineNumber,
+              column: direction,
             };
+
             this.editor.setPosition(range);
           } else {
-            const direction =
-              selection.endColumn > oldSelections[0].endColumn
-                ? "toRight"
-                : "toLeft";
             let range = {
-              lineNumber: lineNumber,
-              column: direction === "toRight" ? right : left,
+              lineNumber: currentLineNumber,
+              column:
+                (left + right - 1) / 2 > currentPositionColumn ? left : right,
             };
             this.editor.setPosition(range);
           }
@@ -257,8 +268,8 @@ export default class MonacoBlock {
           this.editor.setSelection({
             endColumn: targetPosition.columns[1],
             endLineNumber: positionLineNumber,
-            startColumn: this.firstSelection.column,
-            startLineNumber: this.firstSelection.lineNumber,
+            startColumn: firstPositionColumn,
+            startLineNumber: firstLineNumber,
           });
         } else {
           // 向左选
@@ -277,11 +288,11 @@ export default class MonacoBlock {
    * @param {Monaco.Position} position 光标位置
    * @param {Boolean} prevClosure 是否为前闭合区间
    * @param {Boolean} afterClosure 是否为后闭合区间
-   * @param {Boolean} reverse 找出position内的区间
+   * @param {Boolean} reverse 找出position内的块状
    * @return {Monaco.Position/Monaco.Selection} decoration位置信息
    */
 
-  handkeIsIndecorationRange(
+  handleIsIndecorationRange(
     position,
     prevClosure = false,
     afterClosure = false,
@@ -299,18 +310,7 @@ export default class MonacoBlock {
         if (reverse) {
           const { endColumn, endLineNumber, startColumn, startLineNumber } =
             position;
-          const {
-            endColumn: rEndColumn,
-            endLineNumber: rEndLineNumber,
-            startColumn: rStartColumn,
-            startLineNumber: rStartLineNumber,
-          } = range;
-          if (
-            startLineNumber <= rStartLineNumber &&
-            endLineNumber >= rEndLineNumber &&
-            startColumn <= rStartColumn &&
-            endColumn >= rEndColumn
-          ) {
+          if (position.containsRange(range)) {
             if (!data) {
               data = {
                 lineNumbers: [startLineNumber, endLineNumber],
@@ -397,6 +397,11 @@ export default class MonacoBlock {
     }
     return hasBlock;
   }
+  // 获取所有的块状位置信息
+  getAllBlockMessage() {
+    this.handleParseZero2decoration();
+    return this.decorationsCollection.getRanges();
+  }
   /**
    * @description: 添加代码
    * @param {string|Object} insertContent 添加的内容
@@ -431,7 +436,7 @@ export default class MonacoBlock {
           // 处理需要转义的代码块元素
           const hasBlockCode = (code.match(/{@[\s\S]+?@}/) || []).length;
           if (hasBlockCode) {
-            op.text = code.replace(/{@([\s\S]+?)@}/, "\u200b$1\u200b");
+            op.text = code.replace(/{@([\s\S]+?)@}/g, "\u200b$1\u200b");
           }
           this.editor.executeEdits("", [op]);
           if (hasBlockCode) {
@@ -476,20 +481,21 @@ export default class MonacoBlock {
       this.editor.focus();
     }
   }
-  // 获取所有的块状位置信息
-  getAllBlockMessage() {
-    this.handleParseZero2decoration();
-    return this.decorationsCollection.getRanges();
+  // 获取编辑器内容
+  getCode() {
+    let value = this.editor.getValue();
+    return {
+      value: value.replace(/\u200b/g, ""),
+      serializeValue: value,
+    };
   }
-  // 隐藏零宽字符特殊提示
-  hiddenZeroTip() {
-    this.editor.updateOptions({
-      unicodeHighlight: {
-        invisibleCharacters: false,
-      }, // 隐藏零宽字符特殊显示
-    });
+  // 清空编辑器
+  clear() {
+    this.editor.setValue("");
+    this.decorationsCollection = null;
   }
   destroy() {
     this._setOptions(true);
+    this.editor?.dispose?.();
   }
 }

@@ -3,7 +3,7 @@
  * @Description: 
  * @Date: 2023-04-07 18:16:32
  * @LastEditors: Chenqy
- * @LastEditTime: 2023-04-19 11:07:10
+ * @LastEditTime: 2024-03-05 09:20:26
 -->
 # monaco-editor-block
 monaco-editor-block 为monaco-editor的块状元素扩充插件
@@ -12,9 +12,6 @@ monaco-editor-block 为monaco-editor的块状元素扩充插件
 2. 创建monaco实列
 3. 初始化monaco-editor-block
 4. 如需要创建块状元素调用monaco-editor-block的addCode方法
-### 额外方式
-  1. hiddenZeroTip: 隐藏零宽字符在monaco中的特殊样式
-  2. 若需要修改块状元素的样式，在项目中直接覆盖.editor-custom-block的样式即可
 ### 使用代码
 ``` javascript
   import { MonacoBlock } from "./dist/monacoBlock";
@@ -24,9 +21,11 @@ monaco-editor-block 为monaco-editor的块状元素扩充插件
     value: "test",
     automaticLayout: true, 
     theme: "vs",
+    unicodeHighlight: {
+      invisibleCharacters: false, // 隐藏零宽字符特殊显示
+    },
   });
   const monacoBlock = new MonacoBlock(monacoEditor, monaco);
-  monacoBlock.hiddenZeroTip(); 
   const handleAddVar = () => {
     const code = "我是块状变量";
     // 添加块状元素
@@ -45,7 +44,3 @@ monaco-editor-block 为monaco-editor的块状元素扩充插件
 1. npm i
 2. npm run serve
 3. click btn
-
-
-
-dasdasd
