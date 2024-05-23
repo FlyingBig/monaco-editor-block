@@ -148,10 +148,7 @@ export default class MonacoBlock {
         while (i < deleteElement.ranges.length || 0) {
           const range = deleteElement.ranges[i];
           deleteCodes.push({
-            code: this.editor
-              .getModel()
-              .getValueInRange(range)
-              .replace(/\u200b/g, ""),
+            code: this._utilGetDecorationInRangeData(range),
             range,
           });
           i++;
@@ -224,7 +221,6 @@ export default class MonacoBlock {
         // 利用鼠标移动焦点
         if (source === "mouse") {
           // 如果有块状元素重新光标移动逻辑
-          console.log(currentPositionColumn);
           let range = {
             lineNumber: currentLineNumber,
             column: (left + right) / 2 > currentPositionColumn ? left : right,
@@ -346,6 +342,27 @@ export default class MonacoBlock {
       return null;
     }
   }
+  _utilGetDecorationInRangeData(range) {
+    const decorations = this.editor.getDecorationsInRange(range);
+    let blockData = null;
+    if (decorations.length) {
+      for (let i = 0, j = decorations.length; i < j; i++) {
+        const options = decorations[i]?.options;
+        if (/^editor-/.test(options?.inlineClassName)) {
+          blockData = options.description;
+          break;
+        }
+      }
+    }
+    // 若没有块状数据，则获取块状文本
+    if (blockData === null) {
+      blockData = this.editor
+        .getModel()
+        .getValueInRange(range)
+        .replace(/\u200b/g, "");
+    }
+    return blockData;
+  }
   // 解析零宽字符为装饰器
   handleParseZero2decoration() {
     const editPosition = this.editor
@@ -355,10 +372,7 @@ export default class MonacoBlock {
       let decorations = [];
       for (let i = 0; i < editPosition.length; i++) {
         const range = editPosition[i].range;
-        const blockCode = this.editor
-          .getModel()
-          .getValueInRange(range)
-          .replace(/\u200b/g, "");
+        const blockCode = this._utilGetDecorationInRangeData(range);
         // 设置装饰器
         decorations.push({
           range: range,
@@ -380,11 +394,13 @@ export default class MonacoBlock {
     if (customBlockStyle) {
       // 自定义样式
       decorationOption = customBlockStyle(code);
+      decorationOption.description = code;
     } else {
       decorationOption = {
         inlineClassName: blockClassName || "editor-custom-block",
         stickiness:
           monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, // 边缘输入时不进行装饰
+        description: code,
       };
     }
     return decorationOption;
@@ -405,11 +421,14 @@ export default class MonacoBlock {
   /**
    * @description: 添加代码
    * @param {string|Object} insertContent 添加的内容
+   *   @param {Boolean} isNormal 是否为普通文本
+   *   @param {String}  code 块状代码
+   *
    * @param {string} type 添加方式  参考值：[focus, end]
    * @return {*}
    */
   addCode(insertContent, type = "focus") {
-    let code = insertContent?.code || insertObj;
+    let code = insertContent?.code || insertContent;
     if (code && this.editor) {
       let range = null;
       if (type === "focus") {
@@ -446,7 +465,6 @@ export default class MonacoBlock {
           }
         }
       } else {
-        // 块状元素处理[添加\200c零宽是为了处理光标在块状边界时添加代码会和前面的块状代码融合]
         op.text = `\u200b${op.text}\u200b`;
         const decorationRange = [
           range.startLineNumber,
@@ -463,7 +481,7 @@ export default class MonacoBlock {
               this.decorationsCollection.append([
                 {
                   range: new monaco.Range(...decorationRange),
-                  options: this.handleDecorationOption(code),
+                  options: this.handleDecorationOption(insertContent),
                 },
               ]);
             }
@@ -472,7 +490,7 @@ export default class MonacoBlock {
           this.decorationsCollection = this.editor.createDecorationsCollection([
             {
               range: new monaco.Range(...decorationRange),
-              options: this.handleDecorationOption(code),
+              options: this.handleDecorationOption(insertContent),
             },
           ]);
         }
@@ -486,7 +504,7 @@ export default class MonacoBlock {
     let value = this.editor.getValue();
     return {
       value: value.replace(/\u200b/g, ""),
-      serializeValue: value,
+      blockValue: value,
     };
   }
   // 清空编辑器

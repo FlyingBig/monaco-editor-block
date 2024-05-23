@@ -1,10 +1,3 @@
-/*
- * @Editor: chenqy
- * @Description:
- * @Date: 2023-04-07 15:52:39
- * @LastEditors: Chenqy
- * @LastEditTime: 2024-03-05 10:57:55
- */
 import MonacoBlock from "./monacoBlock/monacoBlock";
 import * as monaco from "monaco-editor";
 let oldValue = "";
@@ -28,10 +21,10 @@ const init = () => {
     hideZeroCode: true, // 隐藏零宽字符特殊样式
 
     deleteBlockCode: (codes) => {
-      console.log("删除的块状代码串：",codes);
+      console.log("deleteBlockCode", codes);
     },
     customBlockStyle: (blockWord) => {
-      console.log(`自定义样式代码串：${blockWord}`);
+      console.log(`customBlockStyle:`, blockWord);
       return {
         inlineClassName:
           blockWord === "块状代码一"
@@ -55,13 +48,13 @@ const addBtn = () => {
   let btn = document.createElement("button");
   btn.innerText = "添加块状代码(样式一)";
   btn.onclick = () => {
-    handleAddVar({ code: `块状代码一` });
+    handleAddVar(`块状代码一`);
   };
 
   let btn1 = document.createElement("button");
   btn1.innerText = "添加块状代码(样式二)";
   btn1.onclick = () => {
-    handleAddVar({ code: `块状代码二` });
+    handleAddVar(`块状代码二`);
   };
 
   let btn2 = document.createElement("button");
@@ -85,17 +78,16 @@ const addBtn = () => {
   let btn4 = document.createElement("button");
   btn4.innerText = "获取值";
   btn4.onclick = () => {
-    const { value, serializeValue } = monacoBlock.getCode();
+    const { value, blockValue } = monacoBlock.getCode();
     console.log(`获取值：${value}`);
-    console.log(`带块状信息的值：${serializeValue}`);
-    oldValue = serializeValue;
+    console.log(`带块状信息的值：${blockValue}`);
+    oldValue = blockValue;
   };
 
   let btn5 = document.createElement("button");
   btn5.innerText = "复现获取后的值";
   btn5.onclick = () => {
     monacoBlock.destroy();
-    // 定时器存在的意义是方便展示效果
     setTimeout(() => {
       init();
     }, 1000);
