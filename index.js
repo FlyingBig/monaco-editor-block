@@ -10,8 +10,8 @@ const init = () => {
     automaticLayout: true, // 自动布局
     theme: "vs", // 官方自带三种主题vs, hc-black, or vs-dark
     unicodeHighlight: {
-      invisibleCharacters: false, // 隐藏零宽字符特殊显示
-    },
+      invisibleCharacters: false // 隐藏零宽字符特殊显示
+    }
   });
   // console.log(monacoEditor)
   monacoBlock = new MonacoBlock(monacoEditor, {
@@ -24,21 +24,15 @@ const init = () => {
       console.log("deleteBlockCode", codes);
     },
     customBlockStyle: (blockWord) => {
-      console.log(`customBlockStyle:`, blockWord);
       return {
-        inlineClassName:
-          blockWord === "块状代码一"
-            ? "editor-custom-block"
-            : "editor-custom-blue",
-        stickiness:
-          monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+        inlineClassName: blockWord === "块状代码一" ? "editor-custom-block" : "editor-custom-blue",
+        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
       };
-    },
+    }
   });
 };
-init();
-
 window.monaco = monaco;
+init();
 
 const handleAddVar = (code) => {
   monacoBlock.addCode(code);
@@ -62,7 +56,7 @@ const addBtn = () => {
   btn2.onclick = () => {
     handleAddVar({
       code: "普通代码",
-      isNormal: true,
+      isNormal: true
     });
   };
 
@@ -71,7 +65,7 @@ const addBtn = () => {
   btn3.onclick = () => {
     handleAddVar({
       code: "\n{@阳光呐@}明媚，而我在{@垃圾堆@}\n怎么可能你真的会来找我",
-      isNormal: true,
+      isNormal: true
     });
   };
 
