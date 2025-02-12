@@ -1,7 +1,6 @@
 /*
  * @Version: 0.46.0
  */
-import * as monaco from "monaco-editor";
 export default class MonacoBlock {
   decorationsCollection = null; // 块状元素装饰器
   firstSelection = null;
@@ -13,7 +12,7 @@ export default class MonacoBlock {
 
     const defaultOptions = {
       cancelJsDiagnostics: true, // 取消j/ts语义校验
-      cancelJsCompletionItems: true, // 取消j/ts提示
+      cancelJsCompletionItems: true // 取消j/ts提示
     };
     this.options = Object.assign({}, defaultOptions, options);
     this.init();
@@ -22,14 +21,14 @@ export default class MonacoBlock {
   _setOptions(isDestroy = false) {
     const { cancelJsDiagnostics, cancelJsCompletionItems } = this.options;
     if (cancelJsDiagnostics) {
-      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      window.window.monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
         noSemanticValidation: !isDestroy,
-        noSyntaxValidation: !isDestroy,
+        noSyntaxValidation: !isDestroy
       });
     }
     if (cancelJsCompletionItems) {
-      monaco.languages.typescript.javascriptDefaults.setModeConfiguration({
-        completionItems: isDestroy,
+      window.monaco.languages.typescript.javascriptDefaults.setModeConfiguration({
+        completionItems: isDestroy
       });
     }
   }
@@ -54,9 +53,7 @@ export default class MonacoBlock {
     };
     this.editor.onDidChangeModelContent(changeValue());
 
-    this.editor.onDidChangeCursorSelection(
-      this.handleChangeCursorSelection.bind(this)
-    );
+    this.editor.onDidChangeCursorSelection(this.handleChangeCursorSelection.bind(this));
 
     this.editor.onMouseDown(() => {
       setTimeout(() => {
@@ -67,34 +64,22 @@ export default class MonacoBlock {
       setTimeout(() => {
         this.firstSelection = null;
         const selection = this.editor.getSelection();
-        this.selectionBlock = this.handleIsIndecorationRange(
-          selection,
-          true,
-          true,
-          true
-        );
+        this.selectionBlock = this.handleIsIndecorationRange(selection, true, true, true);
       }, 50);
     });
-    // 重写删除事件
-    this.editor.addAction({
-      id: "backspace",
-      label: "backspace",
-      keybindings: [monaco.KeyCode.Backspace],
-      run: () => this.handleResetBackspace.bind(this)(),
-    });
-    this.editor.addAction({
-      id: "delete",
-      label: "delete",
-      keybindings: [monaco.KeyCode.Delete],
-      run: () => this.handleResetBackspace.bind(this)(true),
-    });
     // 监听ctrl+v/ctrl+z/ctrl+y
-    this.editor.onKeyDown(({ metaKey, ctrlKey, keyCode }) => {
-      const ck = this.isMac ? metaKey : ctrlKey;
-      if (ck && (keyCode === 56 || keyCode === 52 || keyCode === 55)) {
+    this.editor.onKeyDown((e) => {
+      const ck = this.isMac ? e.metaKey : e.ctrlKey;
+      if (ck && (e.keyCode === 56 || e.keyCode === 52 || e.keyCode === 55)) {
         setTimeout(() => {
           this.handleParseZero2decoration();
         }, 50);
+      } else if (e.keyCode === 1 || e.keyCode === 20) {
+        if (this.editor.hasTextFocus()) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleResetBackspace(e.keyCode === 20);
+        }
       }
     });
     this.handleParseZero2decoration();
@@ -105,39 +90,28 @@ export default class MonacoBlock {
    * @return {*}
    */
   handleResetBackspace(isDelete = false) {
+    if (!this.editor.hasTextFocus()) return;
     const { lineNumber, column } = this.editor.getPosition();
     const selection = this.editor.getSelection();
-    const { endColumn, endLineNumber, startColumn, startLineNumber } =
-      selection;
+    const { endColumn, endLineNumber, startColumn, startLineNumber } = selection;
     let deleteElement = {};
     let hasBlock = false;
     // 判断是否为选中删除
     if (startLineNumber === endLineNumber && startColumn === endColumn) {
       deleteElement = this.handleIsIndecorationRange(selection, isDelete, true);
     } else {
-      deleteElement = this.handleIsIndecorationRange(
-        selection,
-        false,
-        true,
-        true
-      );
+      deleteElement = this.handleIsIndecorationRange(selection, false, true, true);
     }
     if (!deleteElement) {
       if (isDelete) {
         deleteElement = {
           lineNumbers: [startLineNumber, endLineNumber],
-          columns: [
-            startColumn,
-            endColumn === startColumn ? endColumn + 1 : endColumn,
-          ],
+          columns: [startColumn, endColumn === startColumn ? endColumn + 1 : endColumn]
         };
       } else {
         deleteElement = {
           lineNumbers: [startLineNumber, endLineNumber],
-          columns: [
-            startColumn === endColumn ? startColumn - 1 : startColumn,
-            endColumn,
-          ],
+          columns: [startColumn === endColumn ? startColumn - 1 : startColumn, endColumn]
         };
       }
     } else {
@@ -149,7 +123,7 @@ export default class MonacoBlock {
           const range = deleteElement.ranges[i];
           deleteCodes.push({
             code: this._utilGetDecorationInRangeData(range),
-            range,
+            range
           });
           i++;
         }
@@ -160,15 +134,10 @@ export default class MonacoBlock {
 
     this.editor.executeEdits("", [
       {
-        range: new monaco.Range(
-          deleteElement.lineNumbers[0],
-          deleteElement.columns[0],
-          deleteElement.lineNumbers[1],
-          deleteElement.columns[1]
-        ),
+        range: new window.monaco.Range(deleteElement.lineNumbers[0], deleteElement.columns[0], deleteElement.lineNumbers[1], deleteElement.columns[1]),
         text: "",
-        forceMoveMarkers: true, // 取消选中状态
-      },
+        forceMoveMarkers: true // 取消选中状态
+      }
     ]);
     // 删除decoration数据
     if (hasBlock) {
@@ -176,25 +145,17 @@ export default class MonacoBlock {
     }
     // 检查光标是否需要换行
     if (column === 1 && lineNumber !== 1) {
-      const focusLineMaxColums =
-        this.editor.getModel().getLineMaxColumn(lineNumber) - 1;
+      const focusLineMaxColums = this.editor.getModel().getLineMaxColumn(lineNumber) - 1;
       this.editor.executeEdits("", [
         {
-          range: new monaco.Range(
-            lineNumber - 1,
-            this.editor.getModel().getLineMaxColumn(lineNumber - 1),
-            lineNumber,
-            0
-          ),
+          range: new window.monaco.Range(lineNumber - 1, this.editor.getModel().getLineMaxColumn(lineNumber - 1), lineNumber, 0),
           text: "",
-          forceMoveMarkers: true, // 取消选中状态
-        },
+          forceMoveMarkers: true // 取消选中状态
+        }
       ]);
       this.editor.setPosition({
         lineNumber: lineNumber - 1,
-        column:
-          this.editor.getModel().getLineMaxColumn(lineNumber - 1) -
-          focusLineMaxColums,
+        column: this.editor.getModel().getLineMaxColumn(lineNumber - 1) - focusLineMaxColums
       });
     }
   }
@@ -212,18 +173,14 @@ export default class MonacoBlock {
       if (isSingle) {
         if (!targetPosition) return;
         const [left, right] = targetPosition.columns;
-        const {
-          startColumn: currentPositionColumn,
-          startLineNumber: currentLineNumber,
-        } = selection;
-        const { startLineNumber: oldLineNumber, startColumn: oldColumn } =
-          oldSelections[0];
+        const { startColumn: currentPositionColumn, startLineNumber: currentLineNumber } = selection;
+        const { startLineNumber: oldLineNumber, startColumn: oldColumn } = oldSelections[0];
         // 利用鼠标移动焦点
         if (source === "mouse") {
           // 如果有块状元素重新光标移动逻辑
           let range = {
             lineNumber: currentLineNumber,
-            column: (left + right) / 2 > currentPositionColumn ? left : right,
+            column: (left + right) / 2 > currentPositionColumn ? left : right
           };
           this.editor.setPosition(range);
         } else {
@@ -232,31 +189,27 @@ export default class MonacoBlock {
             const direction = currentPositionColumn > oldColumn ? right : left;
             let range = {
               lineNumber: currentLineNumber,
-              column: direction,
+              column: direction
             };
 
             this.editor.setPosition(range);
           } else {
             let range = {
               lineNumber: currentLineNumber,
-              column:
-                (left + right - 1) / 2 > currentPositionColumn ? left : right,
+              column: (left + right - 1) / 2 > currentPositionColumn ? left : right
             };
             this.editor.setPosition(range);
           }
         }
       } else {
         const { positionLineNumber, positionColumn } = selection;
-        const { lineNumber: firstLineNumber, column: firstPositionColumn } =
-          this.firstSelection;
+        const { lineNumber: firstLineNumber, column: firstPositionColumn } = this.firstSelection;
         // 移动方向
         const directionRight =
-          positionLineNumber > firstLineNumber ||
-          (positionLineNumber === firstLineNumber &&
-            positionColumn > firstPositionColumn);
+          positionLineNumber > firstLineNumber || (positionLineNumber === firstLineNumber && positionColumn > firstPositionColumn);
         if (!targetPosition) {
           targetPosition = {
-            columns: [selection.positionColumn, selection.positionColumn],
+            columns: [selection.positionColumn, selection.positionColumn]
           };
         }
         // 向右选
@@ -265,7 +218,7 @@ export default class MonacoBlock {
             endColumn: targetPosition.columns[1],
             endLineNumber: positionLineNumber,
             startColumn: firstPositionColumn,
-            startLineNumber: firstLineNumber,
+            startLineNumber: firstLineNumber
           });
         } else {
           // 向左选
@@ -273,7 +226,7 @@ export default class MonacoBlock {
             endColumn: firstPositionColumn,
             endLineNumber: firstLineNumber,
             startColumn: targetPosition.columns[0],
-            startLineNumber: positionLineNumber,
+            startLineNumber: positionLineNumber
           });
         }
       }
@@ -281,19 +234,14 @@ export default class MonacoBlock {
   }
   /**
    * @description: 当前光标所在位置是否处于某个decoration内
-   * @param {Monaco.Position} position 光标位置
+   * @param {window.monaco.Position} position 光标位置
    * @param {Boolean} prevClosure 是否为前闭合区间
    * @param {Boolean} afterClosure 是否为后闭合区间
    * @param {Boolean} reverse 找出position内的块状
-   * @return {Monaco.Position/Monaco.Selection} decoration位置信息
+   * @return {window.monaco.Position/window.monaco.Selection} decoration位置信息
    */
 
-  handleIsIndecorationRange(
-    position,
-    prevClosure = false,
-    afterClosure = false,
-    reverse = false
-  ) {
+  handleIsIndecorationRange(position, prevClosure = false, afterClosure = false, reverse = false) {
     if (this.decorationsCollection) {
       const decorationPosition = this.decorationsCollection.getRanges();
       let i = 0;
@@ -304,15 +252,14 @@ export default class MonacoBlock {
         const startColumn = range.startColumn + +!prevClosure;
         const endColumn = range.endColumn + +afterClosure;
         if (reverse) {
-          const { endColumn, endLineNumber, startColumn, startLineNumber } =
-            position;
+          const { endColumn, endLineNumber, startColumn, startLineNumber } = position;
           if (position.containsRange(range)) {
             if (!data) {
               data = {
                 lineNumbers: [startLineNumber, endLineNumber],
                 columns: [startColumn, endColumn],
                 index: [i],
-                ranges: [range],
+                ranges: [range]
               };
             } else {
               data.index.push(i);
@@ -321,16 +268,12 @@ export default class MonacoBlock {
           }
           i++;
         } else {
-          if (
-            line === position.positionLineNumber &&
-            position.positionColumn >= startColumn &&
-            position.positionColumn < endColumn
-          ) {
+          if (line === position.positionLineNumber && position.positionColumn >= startColumn && position.positionColumn < endColumn) {
             return {
               lineNumbers: [line, line],
               columns: [range.startColumn, range.endColumn],
               index: [i],
-              ranges: [range],
+              ranges: [range]
             };
           } else {
             i++;
@@ -343,31 +286,14 @@ export default class MonacoBlock {
     }
   }
   _utilGetDecorationInRangeData(range) {
-    const decorations = this.editor.getDecorationsInRange(range);
-    let blockData = null;
-    if (decorations.length) {
-      for (let i = 0, j = decorations.length; i < j; i++) {
-        const options = decorations[i]?.options;
-        if (/^editor-/.test(options?.inlineClassName)) {
-          blockData = options.description;
-          break;
-        }
-      }
-    }
-    // 若没有块状数据，则获取块状文本
-    if (blockData === null) {
-      blockData = this.editor
-        .getModel()
-        .getValueInRange(range)
-        .replace(/\u200b/g, "");
-    }
-    return blockData;
+    return this.editor
+      .getModel()
+      .getValueInRange(range)
+      .replace(/\u200b/g, "");
   }
   // 解析零宽字符为装饰器
   handleParseZero2decoration() {
-    const editPosition = this.editor
-      .getModel()
-      .findMatches(/\u200b[\s\S]+?\u200b/, false, true);
+    const editPosition = this.editor.getModel().findMatches(/\u200b[\s\S]+?\u200b/, false, true);
     if (editPosition.length) {
       let decorations = [];
       for (let i = 0; i < editPosition.length; i++) {
@@ -376,14 +302,13 @@ export default class MonacoBlock {
         // 设置装饰器
         decorations.push({
           range: range,
-          options: this.handleDecorationOption(blockCode),
+          options: this.handleDecorationOption(blockCode)
         });
       }
       if (this.decorationsCollection) {
         this.decorationsCollection.set(decorations);
       } else {
-        this.decorationsCollection =
-          this.editor.createDecorationsCollection(decorations);
+        this.decorationsCollection = this.editor.createDecorationsCollection(decorations);
       }
     }
   }
@@ -398,9 +323,8 @@ export default class MonacoBlock {
     } else {
       decorationOption = {
         inlineClassName: blockClassName || "editor-custom-block",
-        stickiness:
-          monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, // 边缘输入时不进行装饰
-        description: code,
+        stickiness: window.monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, // 边缘输入时不进行装饰
+        description: code
       };
     }
     return decorationOption;
@@ -433,20 +357,15 @@ export default class MonacoBlock {
       let range = null;
       if (type === "focus") {
         let selection = this.editor.getSelection();
-        range = new monaco.Range(
-          selection.startLineNumber,
-          selection.startColumn,
-          selection.endLineNumber,
-          selection.endColumn
-        );
+        range = new window.monaco.Range(selection.startLineNumber, selection.startColumn, selection.endLineNumber, selection.endColumn);
       } else {
         const maxLine = this.editor.getModel().getLineCount();
-        range = new monaco.Range(maxLine + 1, 1, maxLine + 1, 1);
+        range = new window.monaco.Range(maxLine + 1, 1, maxLine + 1, 1);
       }
       let op = {
         range: range,
         text: code,
-        forceMoveMarkers: true, // 取消选中状态
+        forceMoveMarkers: true // 取消选中状态
       };
       // 直接追加普通文本
       if (insertContent?.isNormal) {
@@ -466,32 +385,26 @@ export default class MonacoBlock {
         }
       } else {
         op.text = `\u200b${op.text}\u200b`;
-        const decorationRange = [
-          range.startLineNumber,
-          range.startColumn,
-          range.startLineNumber,
-          range.startColumn + op.text.length,
-        ];
+        const decorationRange = [range.startLineNumber, range.startColumn, range.startLineNumber, range.startColumn + op.text.length];
         this.editor.executeEdits("", [op]);
         if (this.decorationsCollection) {
-          // 同上
           if (!this.selectionBlock) {
-            const idBesideBlock = this.handleFixBlockEdge(range);
-            if (!idBesideBlock) {
+            const isBesideBlock = this.handleFixBlockEdge(range);
+            if (!isBesideBlock) {
               this.decorationsCollection.append([
                 {
-                  range: new monaco.Range(...decorationRange),
-                  options: this.handleDecorationOption(insertContent),
-                },
+                  range: new window.monaco.Range(...decorationRange),
+                  options: this.handleDecorationOption(insertContent)
+                }
               ]);
             }
           }
         } else {
           this.decorationsCollection = this.editor.createDecorationsCollection([
             {
-              range: new monaco.Range(...decorationRange),
-              options: this.handleDecorationOption(insertContent),
-            },
+              range: new window.monaco.Range(...decorationRange),
+              options: this.handleDecorationOption(insertContent)
+            }
           ]);
         }
       }
@@ -504,7 +417,7 @@ export default class MonacoBlock {
     let value = this.editor.getValue();
     return {
       value: value.replace(/\u200b/g, ""),
-      blockValue: value,
+      blockValue: value
     };
   }
   // 清空编辑器
